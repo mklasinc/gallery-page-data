@@ -1,50 +1,45 @@
 var fs = require('fs');
 var readline = require('readline');
 var _ = require('underscore');
-var objArray = []; //placeholder for person objects
-
+var d3 = require('d3-dsv');
+/*-----------------------------------------------------------------------*/
 var r1 = readline.createInterface(process.stdin,process.stdout);
+var tagsData, projectsData;
+/*-----------------------------------------------------------------------*/
 
-var mydata = [];
-mydata = fs.readFileSync('data/projects-data.js', 'utf8');
-console.log(mydata);
-//var mydataarray = JSON.parse('[' + mydata + ']');
-//console.log(typeof mydataarray);
-/*
-//TEMPLATE
-var x = {
+//read the csv file, turn it into a json string
+projectsData = fs.readFileSync('data/project-data.csv', 'utf-8');
+projectsData = d3.csvParse(projectsData, function(d, i){
+	return {
+		name: d.name,
+		author: d.author,
+		link: d.link,
+		description: d.description,
+		tags: {
+			tech: d.tech,
+			course: d.course,
+			custom: d.custom.replace("-",",").replace(" ","-").split(",")
+		},
+		hashtag: d.hashtag,
+		img_url: d.image,
+		index: i
+	};
+});
+//projectsData = JSON.stringify(projectsData.slice(0,projectsData.length - 1));
+projectsData = JSON.stringify(projectsData);
+//console.log(JSON.parse(projectsData));
 
-	name: " ",
-	author: " ",
-	link: " ",
-	description: " ",
-	tech: " ",
-	course: " ",
-	custom: [" "],
-	img_url:
-
-};
-pushToArray(x);
-*/
-
-function pushToArray(obj){
-	objArray.push(obj);
-}
-
-
-
-
-
-//METHOD TO FIND UNIQUE KEY VALUE PAIRS
-/*var tagsData = function(){
-
+//read the json file created above, find all unique category-tag pairs
+var tagsData = function(){
 	var i = 0;
 	var keyList;
 	var outputArray = [];
-	var tagsObjArray = _.pluck(objArray, 'tags');
+	var tagsObjArray = _.pluck(JSON.parse(projectsData), 'tags');
+	//console.log("this is " + tagsObjArray);
 
-	function makeKeyValueArray(array){
-		array.forEach(function(element){
+	function makeKeyValueArray(keyval){
+		//console.log(keyval);
+		keyval.forEach(function(element){
 			var tagCategPair = {
 				ctg: keyList[i].toLowerCase(),
 				tag: element.toLowerCase()
@@ -62,7 +57,9 @@ function pushToArray(obj){
 			.flatten()
 			.uniq()
 			.value();
+			//console.log(result);
 			makeKeyValueArray(result);
+
 		});
 	};
 
@@ -74,47 +71,42 @@ function pushToArray(obj){
 	return JSON.stringify(outputArray);
 }();
 
-
-var projectsData = JSON.stringify(objArray);
-
+//user instructions
 var instructions = "";
-instructions += "You will find the generated json file in the 'output' folder \n";
+instructions += "You will find the generated json files in the 'output' folder \n";
 instructions += "To update the data displayed on the IM Gallery Page: \n";
-instructions += "1. Upload the json file to the 'data' folder on Cyberduck \n";
-instructions += "2. ... that's it! \n";
-*/
+instructions += "put the json files to the 'data' folder on Cyberduck + make sure that project images are in the 'images' folder \n";
+instructions += "for questions and concerns, please write an email to mk4908@nyu.edu";
 
-
-if(!fs.existsSync('output/projects-data.json') && !fs.existsSync('output/tags-data.json')){
-	//write projects data
+//write json string to file
+function writeToJSON(){
 	fs.writeFile('output/projects-data.json', projectsData, function (err) {
-  		if (err) return console.log(err);
-  		console.log("projects data file created!");
-  		//write tags data, inside the callback to ensure synchronisity
+			if (err) return console.log(err);
+			console.log("projects data file created!");
+			//write tags data, inside the callback to ensure synchronisity
 		fs.writeFile('output/tags-data.json', tagsData, function (err) {
 	  		if (err) return console.log(err);
 	  		console.log("tags data file created!");
+	  		console.log('---------------------------------------------');
 	  		console.log(instructions + '\n');
 	  		r1.close();
 		});
 	});
-	//write tags data
+};
+
+//if the output json files are not there, create them
+if(!fs.existsSync('output/projects-data.json') && !fs.existsSync('output/tags-data.json')){
+	writeToJSON();
+//if the output json files already exist, ask for overwrite confirmation
 }else{
 	r1.question("The files already exist. Do you want to overwrite them? (Y/N)", function(answer){
 		if(answer.toLowerCase().trim() == 'y'){
-			fs.writeFile('projects-data.json', projectsData, function (err) {
-				if (err) return console.log(err);
-				console.log("we overwrote the data file\n" + instructions);
-				//r1.close();
-			});
+			writeToJSON();
 		}else{
 			console.log("you are undecided");
-			
+			r1.close();
 		};
-
-		r1.close();
 	});
-	
 };
 
 
